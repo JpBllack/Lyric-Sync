@@ -1,10 +1,10 @@
 from processamento.processar_audio import processar_audio
-
 from sincronizacao.sincronizar_holyrics import (
     extrair_metadados,
     buscar_letra_holyrics,
     gerar_lrc,
-    enviar_letra_holyrics
+    enviar_letra_holyrics,
+    reproduzir_musica  # Certifique-se de importar a função que reproduz a música
 )
 
 def main():
@@ -28,8 +28,12 @@ def main():
     lrc_content = gerar_lrc(timestamps, letra)
     print("Conteúdo LRC Gerado:\n", lrc_content)
 
+    # Reproduzir Música e Sincronizar Letra
+    reproduzir_musica(caminho_audio, timestamps, letra)
+
     # Enviar Letra ao Holyrics
-    enviar_letra_holyrics(lrc_content)
+    # Se a função de sincronização já estiver enviando a letra, essa linha pode ser opcional
+    # enviar_letra_holyrics(lrc_content)
 
 if __name__ == "__main__":
     main()
