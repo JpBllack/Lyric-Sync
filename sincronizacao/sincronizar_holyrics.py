@@ -2,7 +2,7 @@ import requests
 from mutagen.easyid3 import EasyID3
 
 # TOKEN e HEADERS fixos
-TOKEN = "8GhHjIW5DAbC6nnr"
+TOKEN = "N3bPkOuJ4ds02RCR"
 HEADERS = {
     "Authorization": f"Bearer {TOKEN}"
 }
