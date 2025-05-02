@@ -1,7 +1,11 @@
+import pygame
+import time
 import re
+import unicodedata
+import string
 from difflib import SequenceMatcher
 
-# Estrofes do Holyrics
+# ---------- Estrofes do Holyrics ----------
 holyrics_estrofes = [
     """Sua morte ali na cruz
 Carregando a minha dor
@@ -25,7 +29,17 @@ Eu confio que esse amor
 Tem poder pra curar dores"""
 ]
 
-# Função para ler e parsear o arquivo LRC
+# ---------- Funções ----------
+def limpar_texto(texto):
+    stopwords = {"o", "a", "os", "as", "de", "do", "da", "que", "e", "em", "pra", "por", "com"}
+    texto = unicodedata.normalize('NFD', texto)
+    texto = ''.join(c for c in texto if unicodedata.category(c) != 'Mn')
+    texto = texto.translate(str.maketrans('', '', string.punctuation))
+    palavras = texto.lower().strip().split()
+    palavras = [p for p in palavras if p not in stopwords]
+    return ' '.join(palavras)
+
+
 def parse_lrc(lrc_text):
     lines = lrc_text.strip().split('\n')
     parsed = []
@@ -35,65 +49,73 @@ def parse_lrc(lrc_text):
             minutes = int(match.group(1))
             seconds = float(match.group(2))
             text = match.group(3).strip()
-            time = minutes * 60 + seconds
+            time_sec = minutes * 60 + seconds
             if text:
-                parsed.append((time, text))
+                parsed.append((time_sec, text))
     return parsed
 
-# Agrupa por estrofes com base no intervalo entre linhas
-def agrupar_estrofes_lrc(lrc_linhas, intervalo=6.0):
+def agrupar_estrofes_lrc(lrc_linhas, intervalo=3.5):
     estrofes = []
     atual = []
     tempos = []
-    for i, (tempo, texto) in enumerate(lrc_linhas):
-        if not atual:
+    for tempo, texto in lrc_linhas:
+        if not atual or tempo - tempos[-1] <= intervalo:
             atual.append(texto)
-            tempos = [tempo]
+            tempos.append(tempo)
         else:
-            if tempo - tempos[-1] <= intervalo:
-                atual.append(texto)
-                tempos.append(tempo)
-            else:
-                estrofes.append((tempos[0], tempos[-1], '\n'.join(atual)))
-                atual = [texto]
-                tempos = [tempo]
+            estrofes.append((tempos[0], tempos[-1], '\n'.join(atual)))
+            atual = [texto]
+            tempos = [tempo]
     if atual:
         estrofes.append((tempos[0], tempos[-1], '\n'.join(atual)))
     return estrofes
 
-# Similaridade entre dois blocos de texto
 def similaridade(a, b):
-    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+    a = limpar_texto(a)
+    b = limpar_texto(b)
+    return SequenceMatcher(None, a, b).ratio()
 
-# Mapeia as estrofes do Holyrics com as do LRC
-def mapear_estrofes(lrc_estrofes, holyrics_estrofes):
+def mapear_repeticoes(lrc_estrofes, holyrics_estrofes, limite_similaridade=0.5):
     mapeamento = []
-    usados = set()
-    for h_est in holyrics_estrofes:
+    for inicio, fim, trecho in lrc_estrofes:
         melhor_score = 0
-        melhor = None
-        for i, (inicio, fim, l_est) in enumerate(lrc_estrofes):
-            if i in usados:
-                continue
-            score = similaridade(h_est, l_est)
+        melhor_est = None
+        for h in holyrics_estrofes:
+            score = similaridade(h, trecho)
             if score > melhor_score:
                 melhor_score = score
-                melhor = (inicio, fim, l_est, i)
-        if melhor:
-            usados.add(melhor[3])
-            mapeamento.append({'inicio': melhor[0], 'fim': melhor[1], 'letra': h_est})
+                melhor_est = h
+        if melhor_score >= limite_similaridade:
+            mapeamento.append({'inicio': inicio, 'fim': fim, 'letra': melhor_est})
     return mapeamento
 
-# Código principal
+# ---------- Execução Principal ----------
 if __name__ == "__main__":
-    with open('musica.lrc', 'r', encoding='utf-8') as f:
+    with open("LyricSyncTest/musica.lrc", "r", encoding="utf-8") as f:
         lrc_text = f.read()
 
     lrc_linhas = parse_lrc(lrc_text)
     lrc_estrofes = agrupar_estrofes_lrc(lrc_linhas)
-    mapeamento = mapear_estrofes(lrc_estrofes, holyrics_estrofes)
+    estrofes_mapeadas = mapear_repeticoes(lrc_estrofes, holyrics_estrofes)
 
-    for i, est in enumerate(mapeamento):
-        print(f"Estrofe {i+1}: {est['inicio']:.2f}s até {est['fim']:.2f}s")
-        print(est['letra'])
-        print('-' * 40)
+    pygame.mixer.init()
+    pygame.mixer.music.load("LyricSyncTest/vou-deixar-na-cruz.mp3")
+    pygame.mixer.music.play()
+    print("🎵 Tocando música...")
+
+    mostradas = set()
+    inicio_tempo = time.time()
+
+    try:
+        while pygame.mixer.music.get_busy():
+            agora = time.time() - inicio_tempo
+            for i, est in enumerate(estrofes_mapeadas):
+                if est['inicio'] <= agora <= est['fim'] and i not in mostradas:
+                    mostradas.add(i)
+                    print(f"\n🕐 {est['inicio']:.2f}s até {est['fim']:.2f}s")
+                    print("📖 Estrofe atual:")
+                    print(est['letra'])
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        pygame.mixer.music.stop()
+        print("Parado pelo usuário.")

@@ -4,8 +4,9 @@ from sincronizacao.sincronizar_holyrics import (
     buscar_letra_holyrics,
     gerar_lrc,
     enviar_letra_holyrics,
-    reproduzir_musica  # Certifique-se de importar a função que reproduz a música
+    reproduzir_musica
 )
+import os
 
 def main():
     caminho_audio = 'testes/vou-deixar-na-cruz.mp3'  # Caminho do arquivo MP3
