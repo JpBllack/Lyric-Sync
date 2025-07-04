@@ -1,38 +1,44 @@
-import os
+# core/lrc_fetcher.py
+
 import requests
-from urllib.parse import quote
+import os
 
-LRC_DIR = "assets/lrc/"
-API_URL = "https://lrclib.net/api/search"
+def buscar_lrc(track_name, artist_name, duration=None, album_name=None):
+    url = "https://lrclib.net/api/get"
 
-def buscar_lrc(titulo, artista):
-    if not os.path.exists(LRC_DIR):
-        os.makedirs(LRC_DIR)
+    params = {
+        "track_name": track_name,
+        "artist_name": artist_name,
+    }
+
+    if duration:
+        params["duration"] = int(duration)
+    if album_name:
+        params["album_name"] = album_name
 
     try:
-        titulo_codificado = quote(titulo)
-        artista_codificado = quote(artista)
-
-        url = f"{API_URL}?title={titulo_codificado}&artist={artista_codificado}"
-        print(f"🔍 URL gerada para a busca: {url}")
-
-        response = requests.get(url)
+        response = requests.get(url, params=params)
         response.raise_for_status()
+
         data = response.json()
-
-        if not data or "syncedLyrics" not in data[0]:
-            print(f"❌ Letra sincronizada não encontrada para: {titulo} - {artista}")
+        if "syncedLyrics" in data and data["syncedLyrics"]:
+            return data["syncedLyrics"]
+        else:
+            print("Letra sincronizada não encontrada.")
             return None
+    except requests.RequestException as e:
+        print(f"Erro na requisição: {e}")
+        return None
 
-        lrc_content = data[0]["syncedLyrics"]
-        lrc_file_path = os.path.join(LRC_DIR, f"{titulo}_{artista}.lrc")
 
-        with open(lrc_file_path, "w", encoding="utf-8") as lrc_file:
-            lrc_file.write(lrc_content)
-
-        print(f"✅ LRC baixado e salvo em: {lrc_file_path}")
-        return lrc_file_path
-
+def salvar_lrc(nome_musica, lrc_texto):
+    os.makedirs("assets/lrc", exist_ok=True)
+    nome_arquivo = f"assets/lrc/{nome_musica}.lrc"
+    try:
+        with open(nome_arquivo, "w", encoding="utf-8") as f:
+            f.write(lrc_texto)
+        print(f"✅ Letra salva com sucesso em: {nome_arquivo}")
+        return nome_arquivo
     except Exception as e:
-        print(f"❌ Erro ao buscar LRC: {e}")
+        print(f"Erro ao salvar o arquivo .lrc: {e}")
         return None

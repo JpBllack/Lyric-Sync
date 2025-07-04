@@ -2,10 +2,8 @@ import os
 import shutil
 import tkinter as tk
 from tkinter import filedialog
-from pydub import AudioSegment
-
-from core import metadata_extractor
-from core import lrc_fetcher
+from core.metadata_extractor import extrair_metadados
+from core.lrc_fetcher import buscar_lrc
 
 ASSETS_MUSIC_DIR = "assets/music"
 
@@ -13,8 +11,8 @@ def selecionar_musica():
     root = tk.Tk()
     root.withdraw()
     caminho_arquivo = filedialog.askopenfilename(
-        title="Selecione a música",
-        filetypes=[("Arquivos de áudio", "*.mp3 *.wav *.flac *.mp4")]
+        title="Selecione a música (.mp3 apenas)",
+        filetypes=[("MP3 files", "*.mp3")]
     )
     if caminho_arquivo:
         print(f"🎵 Música selecionada: {caminho_arquivo}")
@@ -22,46 +20,26 @@ def selecionar_musica():
     print("❌ Nenhuma música selecionada.")
     return None
 
-def converter_para_mp3(caminho_arquivo):
-    try:
-        nome_arquivo_mp3 = os.path.splitext(os.path.basename(caminho_arquivo))[0] + ".mp3"
-        destino_mp3 = os.path.join(ASSETS_MUSIC_DIR, nome_arquivo_mp3)
+def preparar_arquivo(caminho_original):
+    if not os.path.exists(ASSETS_MUSIC_DIR):
+        os.makedirs(ASSETS_MUSIC_DIR)
 
-        audio = AudioSegment.from_file(caminho_arquivo)
-        audio.export(destino_mp3, format="mp3")
+    nome_arquivo = os.path.basename(caminho_original)
+    destino = os.path.join(ASSETS_MUSIC_DIR, nome_arquivo)
 
-        print(f"🎵 Música convertida para MP3: {destino_mp3}")
-        return destino_mp3
-    except Exception as e:
-        print(f"❌ Erro ao converter a música: {e}")
-        return None
+    # Faz a cópia do arquivo em vez de mover
+    shutil.copy(caminho_original, destino)
 
-def preparar_arquivo(caminho_arquivo):
-    os.makedirs(ASSETS_MUSIC_DIR, exist_ok=True)
-
-    if not caminho_arquivo.lower().endswith(".mp3"):
-        caminho_arquivo = converter_para_mp3(caminho_arquivo)
-
-    if caminho_arquivo:
-        nome_arquivo = os.path.basename(caminho_arquivo)
-        destino = os.path.join(ASSETS_MUSIC_DIR, nome_arquivo)
-        shutil.copy2(caminho_arquivo, destino)
-        print(f"✅ Música copiada para: {destino}")
-        return destino
-    return None
+    print(f"✅ Música copiada para: {destino}")
+    return destino
 
 if __name__ == "__main__":
     caminho = selecionar_musica()
     if caminho:
         caminho_final = preparar_arquivo(caminho)
-        if caminho_final:
-            metadata = metadata_extractor.extrair_metadados(caminho_final)
-            if "erro" in metadata:
-                print(f"❌ Erro ao extrair metadados: {metadata['erro']}")
-            else:
-                print("📄 Metadados extraídos:", metadata)
-                lrc_path = lrc_fetcher.buscar_lrc(metadata["titulo"], metadata["artista"])
-                if lrc_path:
-                    print(f"📥 LRC salvo em: {lrc_path}")
-                else:
-                    print("❌ LRC não encontrado ou erro na busca.")
+        print("📄 Extraindo metadados...")
+        metadados = extrair_metadados(caminho_final)
+        print(f"📄 Metadados extraídos: {metadados}")
+
+        # 🔍 Buscar o LRC agora que temos título e artista
+        buscar_lrc(metadados["titulo"], metadados["artista"])

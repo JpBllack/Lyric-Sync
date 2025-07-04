@@ -1,20 +1,16 @@
 import re
 
-def parse_lrc(caminho_lrc):
-    try:
-        with open(caminho_lrc, 'r', encoding='utf-8') as f:
-            linhas = f.readlines()
+def parse_lrc(lrc_path):
+    estrofes = []
 
-        estrofes = []
-        for linha in linhas:
+    with open(lrc_path, 'r', encoding='utf-8') as arquivo:
+        for linha in arquivo:
             partes = re.findall(r'\[(\d+):(\d+\.\d+)\](.*)', linha)
-            for min, sec, texto in partes:
-                tempo_segundos = int(min) * 60 + float(sec)
-                estrofes.append((tempo_segundos, texto.strip()))
+            for minuto, segundo, texto in partes:
+                tempo = int(minuto) * 60 + float(segundo)
+                texto = texto.strip()
+                if texto:
+                    estrofes.append((tempo, texto))
 
-        estrofes.sort(key=lambda x: x[0])
-        return estrofes
-
-    except Exception as e:
-        print(f"❌ Erro ao fazer parse do LRC: {e}")
-        return []
+    estrofes.sort(key=lambda x: x[0])
+    return estrofes

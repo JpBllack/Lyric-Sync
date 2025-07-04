@@ -1,21 +1,24 @@
+import os
 import eyed3
 
 def extrair_metadados(musica_path):
-    # Carregar o arquivo de música com eyed3
+    if not os.path.isfile(musica_path):
+        raise FileNotFoundError(f"Arquivo não encontrado: {musica_path}")
+
     audio_file = eyed3.load(musica_path)
+    if audio_file is None:
+        raise IOError(f"Não foi possível abrir o arquivo de áudio: {musica_path}")
 
-    # Extrair informações dos metadados
-    titulo = audio_file.tag.title
-    artista = audio_file.tag.artist
-    duracao = audio_file.info.time_secs  # Tempo total da música em segundos
+    titulo = audio_file.tag.title if audio_file.tag and audio_file.tag.title else "Desconhecido"
+    artista = audio_file.tag.artist if audio_file.tag and audio_file.tag.artist else "Desconhecido"
+    duracao = int(audio_file.info.time_secs) if audio_file.info else 0
 
-    # Exibir as informações
-    print(f"Título: {titulo}")
-    print(f"Artista: {artista}")
-    print(f"Duração: {duracao:.2f} segundos")
+    # Remove \ufeff e espaços extras
+    titulo = titulo.replace('\ufeff', '').strip()
+    artista = artista.replace('\ufeff', '').strip()
 
-    return titulo, artista, duracao
-
-# Teste com o arquivo de música
-musica_path = ''  # Altere o caminho conforme necessário
-titulo, artista, duracao = extrair_metadados(musica_path)
+    return {
+        "titulo": titulo,
+        "artista": artista,
+        "duracao": duracao
+    }
